@@ -3,7 +3,21 @@
 import { GoogleGenAI } from '@google/genai';
 import { ChatMessage, TextSearchAIResponse, VisualSearchAIResponse } from '../types';
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+let ai: GoogleGenAI;
+
+try {
+  ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+} catch (error) {
+  console.error("CRITICAL: Failed to initialize GoogleGenAI client.", error);
+  // This fallback prevents the entire app from crashing if the AI client fails to initialize.
+  // Functions that use `ai` have their own try-catch blocks to handle the resulting error gracefully.
+  ai = {
+    models: {
+      generateContent: () => { throw new Error("AI client failed to initialize. Please check your API key and environment."); }
+    }
+  } as unknown as GoogleGenAI;
+}
+
 
 const TEXT_SEARCH_SYSTEM_INSTRUCTION = `You are an elite Movie Investigator. Your role is to help the user find movies or series that perfectly match their intention. You have two tasks:
 

@@ -6,9 +6,10 @@ interface HeaderProps {
     onViewChange: (view: View) => void;
     language: string;
     onLanguageChange: (langCode: string) => void;
+    currentView: View;
 }
 
-export const Header: React.FC<HeaderProps> = ({ onViewChange, language, onLanguageChange }) => {
+export const Header: React.FC<HeaderProps> = ({ onViewChange, language, onLanguageChange, currentView }) => {
   return (
     <header className="py-4 text-center bg-base-200/50 backdrop-blur-sm sticky top-0 z-10 border-b border-base-300">
         <div className="container mx-auto flex justify-between items-center px-4">
@@ -40,8 +41,20 @@ export const Header: React.FC<HeaderProps> = ({ onViewChange, language, onLangua
                         <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" aria-hidden="true"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
                     </div>
                 </div>
-                <button onClick={() => onViewChange('trending')} className="text-text-secondary hover:text-brand-accent transition-colors duration-200 font-semibold">Trending</button>
-                <button onClick={() => onViewChange('favorites')} className="text-text-secondary hover:text-brand-accent transition-colors duration-200 font-semibold">Favorites</button>
+                <button 
+                    onClick={() => onViewChange('trending')} 
+                    className="text-text-secondary hover:text-brand-accent transition-colors duration-200 font-semibold"
+                    aria-current={currentView === 'trending' ? 'page' : undefined}
+                >
+                    Trending
+                </button>
+                <button 
+                    onClick={() => onViewChange('favorites')} 
+                    className="text-text-secondary hover:text-brand-accent transition-colors duration-200 font-semibold"
+                    aria-current={currentView === 'favorites' ? 'page' : undefined}
+                >
+                    Favorites
+                </button>
             </nav>
         </div>
     </header>

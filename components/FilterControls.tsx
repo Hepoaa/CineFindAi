@@ -49,8 +49,8 @@ export const FilterControls: React.FC<FilterControlsProps> = ({
     return (
         <div className="flex flex-col sm:flex-row gap-4 sm:gap-6">
             {showSortControls && (
-                <div className="flex items-center gap-2">
-                    <span className="text-sm font-bold text-text-secondary min-w-[60px]">Sort by:</span>
+                <fieldset className="flex items-center gap-2">
+                    <legend className="text-sm font-bold text-text-secondary min-w-[60px] text-left">Sort by:</legend>
                     <div className="flex items-center bg-base-200 rounded-full p-1">
                         {sortOptions.map(({ key, label }) => (
                             <ControlButton
@@ -62,10 +62,10 @@ export const FilterControls: React.FC<FilterControlsProps> = ({
                             </ControlButton>
                         ))}
                     </div>
-                </div>
+                </fieldset>
             )}
-            <div className="flex items-center gap-2">
-                <span className="text-sm font-bold text-text-secondary min-w-[60px]">Filter:</span>
+            <fieldset className="flex items-center gap-2">
+                <legend className="text-sm font-bold text-text-secondary min-w-[60px] text-left">Filter:</legend>
                  <div className="flex items-center bg-base-200 rounded-full p-1">
                     {filterOptions.map(({ key, label }) => (
                         <ControlButton
@@ -77,7 +77,7 @@ export const FilterControls: React.FC<FilterControlsProps> = ({
                         </ControlButton>
                     ))}
                 </div>
-            </div>
+            </fieldset>
         </div>
     );
 };
