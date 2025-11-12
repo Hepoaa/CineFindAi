@@ -88,7 +88,7 @@ export const DetailView: React.FC<DetailViewProps> = ({ item, isOpen, isLoading,
                         <div className="p-6 md:p-8 -mt-32 md:-mt-40 relative">
                             <div className="flex flex-col md:flex-row gap-8">
                                 <div className="md:w-1/3 flex-shrink-0">
-                                    <img src={posterUrl} alt={title} className="w-full h-auto rounded-lg shadow-lg aspect-[2/3]"/>
+                                    <img src={posterUrl} alt={title || 'Movie or series poster'} className="w-full h-auto rounded-lg shadow-lg aspect-[2/3]"/>
                                 </div>
                                 <div className="md:w-2/3 text-left">
                                     <h1 id="detail-view-title" className="text-3xl md:text-4xl font-extrabold text-white tracking-tight">{title}</h1>

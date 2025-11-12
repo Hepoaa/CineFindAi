@@ -51,7 +51,7 @@ export const MovieCard: React.FC<MovieCardProps> = ({ item, onToggleFavorite, on
         aria-label={`View details for ${title}`}
     >
       <div className="relative">
-        <img src={posterUrl} alt={title} className="w-full h-auto object-cover aspect-[2/3]" />
+        <img src={posterUrl} alt={title || 'Movie or series poster'} className="w-full h-auto object-cover aspect-[2/3]" />
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
          <div className="absolute top-2 right-2 flex items-center bg-black/70 backdrop-blur-sm text-white text-sm font-bold px-2 py-1 rounded-full">
             <StarIcon className="w-4 h-4 text-yellow-400 mr-1" />
