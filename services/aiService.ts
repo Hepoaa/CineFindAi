@@ -13,7 +13,8 @@ try {
   // Functions that use `ai` have their own try-catch blocks to handle the resulting error gracefully.
   ai = {
     models: {
-      generateContent: () => { throw new Error("AI client failed to initialize. Please check your API key and environment."); }
+      generateContent: () => { throw new Error("AI client failed to initialize. Please check your API key and environment."); },
+      generateContentStream: () => { throw new Error("AI client failed to initialize. Please check your API key and environment."); }
     }
   } as unknown as GoogleGenAI;
 }
@@ -115,8 +116,7 @@ export const getVisualSearchResultsFromAI = async (imageBase64: string, mimeType
     }
 };
 
-
-export const getChatResponseFromAI = async (history: ChatMessage[]): Promise<string> => {
+export async function* getChatResponseFromAIStream(history: ChatMessage[]): AsyncGenerator<string> {
     const contents = history
         .filter(msg => msg.role !== 'error')
         .map(msg => ({
@@ -125,7 +125,7 @@ export const getChatResponseFromAI = async (history: ChatMessage[]): Promise<str
         }));
 
     try {
-        const response = await ai.models.generateContent({
+        const responseStream = await ai.models.generateContentStream({
             model: 'gemini-2.5-flash',
             contents: contents,
             config: {
@@ -134,15 +134,14 @@ export const getChatResponseFromAI = async (history: ChatMessage[]): Promise<str
             },
         });
 
-        const content = response.text;
-
-        if (!content) {
-            throw new Error("AI returned an empty or invalid chat response.");
+        for await (const chunk of responseStream) {
+            const chunkText = chunk.text;
+            if (chunkText) {
+                yield chunkText;
+            }
         }
-        
-        return content;
     } catch (error) {
-        console.error("Error calling Gemini API for chat:", error);
+        console.error("Error calling Gemini API for chat stream:", error);
         throw new Error("Failed to get chat response from AI.");
     }
-};
+}

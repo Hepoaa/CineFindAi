@@ -8,7 +8,7 @@ import { Loader } from './components/Loader';
 import { EmptyState } from './components/EmptyState';
 import { History } from './components/History';
 import { FilterControls } from './components/FilterControls';
-import { getChatResponseFromAI, getTextSearchTermsFromAI, getVisualSearchResultsFromAI } from './services/aiService';
+import { getChatResponseFromAIStream, getTextSearchTermsFromAI, getVisualSearchResultsFromAI } from './services/aiService';
 import { getTrending, getMediaDetails, getWatchProviders, getSimilarMedia, getRecommendedMedia, searchMedia } from './services/tmdbService';
 import { TMDbResult, View, SortOption, FilterOption, DetailedTMDbResult, ChatMessage } from './types';
 import { useLocalStorage } from './hooks/useLocalStorage';
@@ -422,17 +422,37 @@ const App: React.FC = () => {
   }, [selectedItem, language, region]);
 
   const handleSendMessage = async (message: string) => {
-    if (!message.trim()) return;
+    if (!message.trim() || isChatLoading) return;
     
-    setIsChatLoading(true);
     const newMessages: ChatMessage[] = [...chatMessages, { role: 'user', content: message }];
     setChatMessages(newMessages);
+    setIsChatLoading(true);
 
     try {
-        const aiResponse = await getChatResponseFromAI(newMessages);
-        setChatMessages(prev => [...prev, { role: 'ai', content: aiResponse }]);
+        setChatMessages(prev => [...prev, { role: 'ai', content: '' }]);
+
+        const stream = getChatResponseFromAIStream(newMessages);
+        for await (const chunk of stream) {
+            setChatMessages(prev => {
+                const lastMessage = prev[prev.length - 1];
+                if (lastMessage?.role === 'ai') {
+                    const updatedMessages = [...prev.slice(0, -1)];
+                    updatedMessages.push({ ...lastMessage, content: lastMessage.content + chunk });
+                    return updatedMessages;
+                }
+                return prev;
+            });
+        }
     } catch (err) {
-        setChatMessages(prev => [...prev, { role: 'error', content: 'Sorry, I ran into a problem. Please try again.' }]);
+        setChatMessages(prev => {
+            const lastMessage = prev[prev.length - 1];
+            if (lastMessage?.role === 'ai' && lastMessage.content === '') {
+                 const updatedMessages = [...prev.slice(0, -1)];
+                 updatedMessages.push({ role: 'error', content: 'Sorry, I ran into a problem. Please try again.' });
+                 return updatedMessages;
+            }
+            return [...prev, { role: 'error', content: 'Sorry, I ran into a problem. Please try again.' }];
+        });
         console.error(err);
     } finally {
         setIsChatLoading(false);
