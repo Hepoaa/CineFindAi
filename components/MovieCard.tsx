@@ -76,8 +76,7 @@ export const MovieCard: React.FC<MovieCardProps> = ({ item, onToggleFavorite, on
                         <img 
                             key={p.provider_id} 
                             src={`${TMDB_IMAGE_BASE_URL.replace('w500', 'w92')}${p.logo_path}`} 
-                            alt={p.provider_name} 
-                            title={p.provider_name} 
+                            alt={p.provider_name}
                             className="w-7 h-7 rounded-md" 
                         />
                     ))}

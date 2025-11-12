@@ -1,5 +1,3 @@
-
-
 import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { Header } from './components/Header';
 import { SearchBar } from './components/SearchBar';
@@ -136,58 +134,59 @@ const App: React.FC = () => {
     startNewFetch();
   }, [language, startNewFetch]);
 
+  const initialFetchData = useCallback(async () => {
+    let langCodeToUse = language;
+    let regionToUse = region;
+
+    if (!localStorage.getItem('cinesuggest_language')) {
+      const browserLang = navigator.language;
+      const matchedLang = SUPPORTED_LANGUAGES.find(l => l.code === browserLang) 
+                       || SUPPORTED_LANGUAGES.find(l => l.code.startsWith(browserLang.split('-')[0]))
+                       || SUPPORTED_LANGUAGES[0];
+      
+      setLanguage(matchedLang.code);
+      setRegion(matchedLang.region);
+      langCodeToUse = matchedLang.code;
+      regionToUse = matchedLang.region;
+    }
+
+    setIsLoading(true);
+    setLoaderMessage('Fetching trending titles...');
+    setError(null);
+    
+    try {
+      const trendingResults = await getTrending(1, langCodeToUse);
+      
+      const resultsWithProvidersPromises = trendingResults.map(async (result) => {
+        if (!result || !result.id) return result;
+        const providers = await getWatchProviders(result.media_type, result.id, regionToUse);
+        return { ...result, watchProviders: providers };
+      });
+      const enrichedNewResults = await Promise.all(resultsWithProvidersPromises);
+
+      const uniqueResultsMap = new Map<string, TMDbResult>();
+      enrichedNewResults.forEach(result => {
+        if (result && result.id) { 
+          uniqueResultsMap.set(`${result.media_type}-${result.id}`, result);
+        }
+      });
+      
+      setResults(Array.from(uniqueResultsMap.values()));
+      setCanLoadMore(enrichedNewResults.length >= TMDB_PAGE_SIZE);
+    } catch (err) { 
+      handleError(err); 
+    } finally { 
+      setIsLoading(false); 
+      isInitialRender.current = false;
+    }
+  }, [language, region, setLanguage, setRegion]);
+
   // Initial load effect
   useEffect(() => {
-    const initialFetch = async () => {
-      let langCodeToUse = language;
-      let regionToUse = region;
-
-      if (!localStorage.getItem('cinesuggest_language')) {
-        const browserLang = navigator.language;
-        const matchedLang = SUPPORTED_LANGUAGES.find(l => l.code === browserLang) 
-                         || SUPPORTED_LANGUAGES.find(l => l.code.startsWith(browserLang.split('-')[0]))
-                         || SUPPORTED_LANGUAGES[0];
-        
-        setLanguage(matchedLang.code);
-        setRegion(matchedLang.region);
-        langCodeToUse = matchedLang.code;
-        regionToUse = matchedLang.region;
-      }
-
-      setIsLoading(true);
-      setLoaderMessage('Fetching trending titles...');
-      setError(null);
-      
-      try {
-        const trendingResults = await getTrending(1, langCodeToUse);
-        
-        const resultsWithProvidersPromises = trendingResults.map(async (result) => {
-          if (!result || !result.id) return result;
-          const providers = await getWatchProviders(result.media_type, result.id, regionToUse);
-          return { ...result, watchProviders: providers };
-        });
-        const enrichedNewResults = await Promise.all(resultsWithProvidersPromises);
-
-        const uniqueResultsMap = new Map<string, TMDbResult>();
-        enrichedNewResults.forEach(result => {
-          if (result && result.id) { 
-            uniqueResultsMap.set(`${result.media_type}-${result.id}`, result);
-          }
-        });
-        
-        setResults(Array.from(uniqueResultsMap.values()));
-        setCanLoadMore(enrichedNewResults.length >= TMDB_PAGE_SIZE);
-      } catch (err) { 
-        handleError(err); 
-      } finally { 
-        setIsLoading(false); 
-        isInitialRender.current = false;
-      }
-    };
-
-    initialFetch();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    if (isInitialRender.current) {
+      initialFetchData();
+    }
+  }, [initialFetchData]);
   
   const handleSearch = useCallback(async (query: string, imageFile?: File) => {
     if (!query.trim() && !imageFile) return;
@@ -238,10 +237,10 @@ const App: React.FC = () => {
         
         setLoaderMessage('Curating and ranking top results...');
 
-        const uniqueResultsMap = new Map<number, TMDbResult>();
+        const uniqueResultsMap = new Map<string, TMDbResult>();
         allResults.forEach(item => {
-            if (item?.id && !uniqueResultsMap.has(item.id)) {
-                uniqueResultsMap.set(item.id, item);
+            if (item?.id) {
+                uniqueResultsMap.set(`${item.media_type}-${item.id}`, item);
             }
         });
         const uniqueResults = Array.from(uniqueResultsMap.values());
@@ -274,10 +273,10 @@ const App: React.FC = () => {
         const searchResultsArrays = await Promise.all(searchPromises);
         const rawNewResults = searchResultsArrays.flat();
 
-        const uniqueNewResultsMap = new Map<number, TMDbResult>();
+        const uniqueNewResultsMap = new Map<string, TMDbResult>();
         rawNewResults.forEach(item => {
-            if (item?.id && !uniqueNewResultsMap.has(item.id)) {
-                uniqueNewResultsMap.set(item.id, item);
+            if (item?.id) {
+                uniqueNewResultsMap.set(`${item.media_type}-${item.id}`, item);
             }
         });
         const uniqueNewResults = Array.from(uniqueNewResultsMap.values());

@@ -112,7 +112,7 @@ export const ChatView: React.FC<ChatViewProps> = ({ isOpen, onClose, messages, o
                         transform: translateY(0);
                     }
                 }
-                 .scrollbar-thin {
+                .scrollbar-thin {
                     scrollbar-width: thin;
                     scrollbar-color: #2a2a2a #1a1a1a;
                 }

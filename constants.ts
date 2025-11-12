@@ -1,10 +1,17 @@
-
 import { LanguageOption } from './types';
 
 export const TMDB_API_KEY = 'bc0bdde22b34c3195067e0880f8295e7';
 export const TMDB_API_BASE_URL = 'https://api.themoviedb.org/3';
 export const TMDB_IMAGE_BASE_URL = 'https://image.tmdb.org/t/p/w500';
 export const TMDB_PAGE_SIZE = 20; // TMDb API returns 20 results per page by default
+
+// --- NEW CONSTANTS for OpenRouter ---
+// IMPORTANT: Replace with your actual OpenRouter API key.
+export const OPENROUTER_API_KEY = 'YOUR_OPENROUTER_API_KEY_HERE'; 
+export const OPENROUTER_API_BASE_URL = 'https://openrouter.ai/api/v1';
+export const OPENROUTER_TEXT_MODEL = 'mistralai/mistral-7b-instruct:free';
+export const OPENROUTER_VISION_MODEL = 'google/gemini-flash-1.5';
+// --- END NEW CONSTANTS ---
 
 export const SUPPORTED_LANGUAGES: LanguageOption[] = [
     { code: 'en-US', region: 'US', label: '🇺🇸 English (US)' },
