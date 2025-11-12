@@ -14,7 +14,7 @@ export const EmptyState: React.FC<EmptyStateProps> = () => {
       <SearchIcon className="w-24 h-24 text-base-300" />
       <h2 className="text-2xl font-bold mt-4 text-text-primary">No Results Found</h2>
       <p className="text-text-secondary mt-2 max-w-md">
-        Try a different search, or ask our AI assistant in the bottom-right corner for help!
+        Try a different search, or ask our AI assistant in the bottom-left corner for help!
       </p>
     </div>
   );

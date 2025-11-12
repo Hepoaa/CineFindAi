@@ -556,7 +556,7 @@ const App: React.FC = () => {
         {!isChatOpen && (
             <button 
                 onClick={() => setIsChatOpen(true)}
-                className="fixed bottom-6 right-6 bg-gradient-to-r from-brand-accent to-orange-500 text-white rounded-full p-4 shadow-lg hover:scale-110 transform transition-transform duration-300 z-20"
+                className="fixed bottom-6 left-6 bg-gradient-to-r from-brand-accent to-orange-500 text-white rounded-full p-4 shadow-lg hover:scale-110 transform transition-transform duration-300 z-20"
                 aria-label="Open chat"
             >
                 <ChatIcon />
