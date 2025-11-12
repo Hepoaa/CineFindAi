@@ -1,5 +1,10 @@
-import { OPENROUTER_API_KEY, OPENROUTER_API_BASE_URL, OPENROUTER_TEXT_MODEL, OPENROUTER_VISION_MODEL } from '../constants';
+import { GoogleGenAI, Type } from "@google/genai";
 import { ChatMessage, TextSearchAIResponse, VisualSearchAIResponse } from '../types';
+
+// FIX: Initialize GoogleGenAI client. Per coding guidelines, the API key is
+// expected to be in process.env.API_KEY and is assumed to be valid.
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
+
 
 const TEXT_SEARCH_SYSTEM_INSTRUCTION = `You are an elite Movie Investigator. Your role is to help the user find movies or series that perfectly match their intention. You have two tasks:
 
@@ -27,48 +32,45 @@ Respond ONLY with a single JSON structure with the following format. Fill in *ei
 
 const CHAT_SYSTEM_INSTRUCTION = `You are CineSuggest AI, a friendly and knowledgeable chatbot specializing in movies and TV shows. Your goal is to have a natural conversation with the user, helping them discover new things to watch, answer trivia, or just chat about film. Be conversational, engaging, and helpful. Don't just provide lists; explain why you're suggesting something. Keep your responses concise and easy to read.`;
 
-
+// FIX: This function has been rewritten to use the Google Gemini API instead of OpenRouter.
+// It now uses ai.models.generateContent with a response schema to ensure valid JSON output.
+// The fallback logic is preserved in case of an API error.
 export const getTextSearchTermsFromAI = async (query: string): Promise<TextSearchAIResponse> => {
-    if (!OPENROUTER_API_KEY || OPENROUTER_API_KEY === 'YOUR_OPENROUTER_API_KEY_HERE') {
-        console.warn("OpenRouter API key not set. Falling back to direct search.");
-        return { pregunta: "Using direct search...", terminos_busqueda: query };
-    }
     try {
-        const response = await fetch(`${OPENROUTER_API_BASE_URL}/chat/completions`, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
-                'Content-Type': 'application/json',
-                'HTTP-Referer': 'https://cinesuggest.ai', // Recommended by OpenRouter
-                'X-Title': 'CineSuggest AI', // Recommended by OpenRouter
-            },
-            body: JSON.stringify({
-                model: OPENROUTER_TEXT_MODEL,
-                messages: [
-                    { role: 'system', content: TEXT_SEARCH_SYSTEM_INSTRUCTION },
-                    { role: 'user', content: `User Query: "${query}"` }
-                ],
-                response_format: { type: "json_object" }
-            })
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: `User Query: "${query}"`,
+            config: {
+                systemInstruction: TEXT_SEARCH_SYSTEM_INSTRUCTION,
+                responseMimeType: "application/json",
+                responseSchema: {
+                    type: Type.OBJECT,
+                    properties: {
+                        pregunta: {
+                            type: Type.STRING,
+                            description: "An intriguing, open-ended question to get more details about the user's search (max 15 words)."
+                        },
+                        terminos_busqueda: {
+                            type: Type.STRING,
+                            description: "A pipe-separated list of 7 high-quality search terms for the media API."
+                        }
+                    },
+                    required: ['pregunta', 'terminos_busqueda']
+                }
+            }
         });
 
-        if (!response.ok) {
-            const errorBody = await response.json();
-            console.error("OpenRouter API Error:", errorBody);
-            throw new Error(`OpenRouter API responded with status ${response.status}`);
-        }
-
-        const data = await response.json();
-        const content = data.choices[0].message.content;
-        const parsed: TextSearchAIResponse = JSON.parse(content);
+        const jsonStr = response.text.trim();
+        const parsed: TextSearchAIResponse = JSON.parse(jsonStr);
 
         if (!parsed.terminos_busqueda) {
             throw new Error("AI returned empty search terms.");
         }
-        
+
         return parsed;
     } catch (error) {
-        console.error("Error calling OpenRouter API for text search:", error);
+        console.error("Error calling Gemini API for text search:", error);
+        // Fallback to direct search on API failure
         return {
             pregunta: "AI search failed. Running a direct search...",
             terminos_busqueda: query,
@@ -76,45 +78,46 @@ export const getTextSearchTermsFromAI = async (query: string): Promise<TextSearc
     }
 }
 
+// FIX: This function has been rewritten to use the Google Gemini API for multimodal search.
+// It now constructs a multimodal prompt with image and text parts.
+// Error handling and response parsing are updated for the Gemini API.
 export const getVisualSearchResultsFromAI = async (imageBase64: string, mimeType: string, query: string): Promise<VisualSearchAIResponse> => {
-    if (!OPENROUTER_API_KEY || OPENROUTER_API_KEY === 'YOUR_OPENROUTER_API_KEY_HERE') {
-        throw new Error("OpenRouter API key is not configured. Cannot perform visual search.");
-    }
     try {
-        const response = await fetch(`${OPENROUTER_API_BASE_URL}/chat/completions`, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
-                'Content-Type': 'application/json',
-                'HTTP-Referer': 'https://cinesuggest.ai',
-                'X-Title': 'CineSuggest AI',
+        const imagePart = {
+            inlineData: {
+                mimeType: mimeType,
+                data: imageBase64,
             },
-            body: JSON.stringify({
-                model: OPENROUTER_VISION_MODEL,
-                messages: [
-                    { role: 'system', content: VISUAL_SEARCH_SYSTEM_INSTRUCTION },
-                    { 
-                        role: 'user', 
-                        content: [
-                            { type: 'text', text: `User's optional text hint: "${query || 'No hint provided'}"` },
-                            { type: 'image_url', image_url: { url: `data:${mimeType};base64,${imageBase64}` } }
-                        ]
+        };
+        const textPart = {
+            text: `User's optional text hint: "${query || 'No hint provided'}"`
+        };
+
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: { parts: [imagePart, textPart] },
+            config: {
+                systemInstruction: VISUAL_SEARCH_SYSTEM_INSTRUCTION,
+                responseMimeType: "application/json",
+                responseSchema: {
+                    type: Type.OBJECT,
+                    properties: {
+                        title: {
+                            type: Type.STRING,
+                            description: "The exact movie or series title if identifiable. Should be null if not."
+                        },
+                        search_terms: {
+                            type: Type.STRING,
+                            description: "A pipe-separated list of 7 descriptive search terms if title is not identifiable. Should be null if not."
+                        }
                     }
-                ],
-                response_format: { type: "json_object" }
-            })
+                }
+            }
         });
 
-        if (!response.ok) {
-            const errorBody = await response.json();
-            console.error("OpenRouter API Error:", errorBody);
-            throw new Error(`OpenRouter API responded with status ${response.status}`);
-        }
-        
-        const data = await response.json();
-        const content = data.choices[0].message.content;
-        const parsed: VisualSearchAIResponse = JSON.parse(content);
-        
+        const jsonStr = response.text.trim();
+        const parsed: VisualSearchAIResponse = JSON.parse(jsonStr);
+
         if (!parsed.title && !parsed.search_terms) {
             throw new Error("AI could not identify the image or provide search terms.");
         }
@@ -122,79 +125,38 @@ export const getVisualSearchResultsFromAI = async (imageBase64: string, mimeType
         return parsed;
 
     } catch (error) {
-        console.error("Error calling OpenRouter API for visual search:", error);
-        throw new Error("Failed to get visual search response from AI.");
+        console.error("Error calling Gemini API for visual search:", error);
+        throw new Error(`Failed to get visual search response from AI. ${error instanceof Error ? error.message : ''}`.trim());
     }
 };
 
+// FIX: This function has been rewritten to use the Google Gemini API for streaming chat.
+// It now uses ai.models.generateContentStream and correctly formats the chat history.
 export async function* getChatResponseFromAIStream(history: ChatMessage[]): AsyncGenerator<string> {
-    if (!OPENROUTER_API_KEY || OPENROUTER_API_KEY === 'YOUR_OPENROUTER_API_KEY_HERE') {
-        yield "The OpenRouter API key is not configured. Please add it to use the chat feature.";
-        return;
-    }
-
-    const messages = history
+    const contents = history
         .filter(msg => msg.role !== 'error')
         .map(msg => ({
-            role: msg.role === 'ai' ? 'assistant' : 'user',
-            content: msg.content
+            role: (msg.role === 'ai' ? 'model' : 'user') as 'user' | 'model',
+            parts: [{ text: msg.content }]
         }));
 
     try {
-        const response = await fetch(`${OPENROUTER_API_BASE_URL}/chat/completions`, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
-                'Content-Type': 'application/json',
-                'HTTP-Referer': 'https://cinesuggest.ai',
-                'X-Title': 'CineSuggest AI',
-            },
-            body: JSON.stringify({
-                model: OPENROUTER_TEXT_MODEL,
-                messages: [
-                    { role: 'system', content: CHAT_SYSTEM_INSTRUCTION },
-                    ...messages
-                ],
-                stream: true
-            })
+        const responseStream = await ai.models.generateContentStream({
+            model: 'gemini-2.5-flash',
+            contents: contents,
+            config: {
+                systemInstruction: CHAT_SYSTEM_INSTRUCTION
+            }
         });
 
-        if (!response.body) {
-            throw new Error("Response body is null");
-        }
-        
-        const reader = response.body.getReader();
-        const decoder = new TextDecoder();
-        let buffer = '';
-
-        while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-
-            buffer += decoder.decode(value, { stream: true });
-            const lines = buffer.split('\n');
-            buffer = lines.pop() || ''; // Keep the last partial line in buffer
-
-            for (const line of lines) {
-                if (line.startsWith('data: ')) {
-                    const data = line.substring(6);
-                    if (data.trim() === '[DONE]') {
-                        return;
-                    }
-                    try {
-                        const json = JSON.parse(data);
-                        const content = json.choices[0]?.delta?.content;
-                        if (content) {
-                            yield content;
-                        }
-                    } catch (e) {
-                        console.error("Failed to parse stream chunk:", data, e);
-                    }
-                }
+        for await (const chunk of responseStream) {
+            const text = chunk.text;
+            if (text) {
+                yield text;
             }
         }
     } catch (error) {
-        console.error("Error calling OpenRouter API for chat stream:", error);
-        throw new Error("Failed to get chat response from AI.");
+        console.error("Error calling Gemini API for chat stream:", error);
+        yield "Sorry, I encountered an error trying to respond. Please check the console for details.";
     }
 }
